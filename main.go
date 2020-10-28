@@ -65,7 +65,6 @@ func proxyHandler(response http.ResponseWriter, request *http.Request) {
 		fmt.Fprintf(response, "Something went terribly wrong... %s", err)
 	} else {
 		sub := cookies[cookie.Value].Sub(time.Now())
-		fmt.Println(sub)
 		if sub <= 0 {
 			// If cookie is expired -> Issue new one
 			issueCookie(response, request)

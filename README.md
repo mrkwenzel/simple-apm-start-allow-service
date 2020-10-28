@@ -19,3 +19,11 @@ Example:
 ```
 SIMPLE_APM_PROXIED_SERVICE=http://localhost:8082  SIMPLE_APM_COOKIE_TTL=3600  SIMPLE_APM_PORT=8081 ./simple-apm-start-allow-service
 ```
+
+### Docker
+You can also build and run this service as Docker container:
+
+```
+docker build . -t simple-apm-start-allow-service
+docker run -p8080:8080 -e SIMPLE_APM_PROXIED_SERVICE=http://example.com --name simple-apm-start-allow-service simple-apm-start-allow-service
+```
