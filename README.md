@@ -8,8 +8,11 @@ Currently works only with `http` but can be extended to `https`.
 
 ## How to run
 You can set up following vars:
+
 `SIMPLE_APM_PORT`: Defaults to `8080` but can be set up to any port.
+
 `SIMPLE_APM_PROXIED_SERVICE`: Defaults to `http://localhost:8081`.
+
 `SIMPLE_APM_COOKIE_TTL`: Defaults to `360` seconds (5 minutes).
 
 Example:
