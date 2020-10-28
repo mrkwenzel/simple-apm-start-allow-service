@@ -48,6 +48,7 @@ func issueCookie(response http.ResponseWriter, request *http.Request) {
 		Name:    "MRHSession",
 		Value:   val,
 		Expires: expire,
+		Path:    "/",
 	}
 	http.SetCookie(response, &cookie)
 	requests[cookie.Value] = request.URL.Path // Store requested ressource
