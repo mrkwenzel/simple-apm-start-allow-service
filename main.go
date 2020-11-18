@@ -31,12 +31,8 @@ var requests = make(map[string]string)
 // Issued cookies together with their expiration time
 var cookies = make(map[string]time.Time)
 
-/*
-	Redirect with issuing the cookie
-	It also stores the originally requested ressource in the "requests" map
-	and the expiration time of the issued cookie in the "cookies" map.
-*/
-func issueCookie(response http.ResponseWriter, request *http.Request) {
+// Issue session cookie to the response
+func issueCookieToResponse(response http.ResponseWriter) (http.ResponseWriter, string) {
 	ttl, err := strconv.Atoi(cookieTTL)
 	if err != nil {
 		fmt.Printf("Something went terribly wrong...")
@@ -51,8 +47,19 @@ func issueCookie(response http.ResponseWriter, request *http.Request) {
 		Path:    "/",
 	}
 	http.SetCookie(response, &cookie)
-	requests[cookie.Value] = request.URL.Path // Store requested ressource
-	cookies[cookie.Value] = expire            // Store expiration of MRHSession cookie
+	//fmt.Printf("Issued cookie:%s\n", cookie.Value) keeping for debug output
+	cookies[cookie.Value] = expire // Store expiration of MRHSession cookie
+	return response, val
+}
+
+/*
+	Redirect with issuing the cookie
+	It also stores the originally requested ressource in the "requests" map
+	and the expiration time of the issued cookie in the "cookies" map.
+*/
+func redirectMyPolicy(response http.ResponseWriter, request *http.Request) {
+	response, cookieValue := issueCookieToResponse(response)
+	requests[cookieValue] = request.URL.Path // Store requested ressource
 	http.Redirect(response, request, "/my.policy", http.StatusFound)
 }
 
@@ -60,20 +67,24 @@ func issueCookie(response http.ResponseWriter, request *http.Request) {
 func proxyHandler(response http.ResponseWriter, request *http.Request) {
 	cookie, err := request.Cookie("MRHSession")
 	if err == http.ErrNoCookie {
-		issueCookie(response, request) // No cookie -> Issue new one
+		redirectMyPolicy(response, request) // No cookie -> Issue new one
 	} else if err != nil {
 		fmt.Println(err) // hopefully never happens...
 		fmt.Fprintf(response, "Something went terribly wrong... %s", err)
 	} else {
-		sub := cookies[cookie.Value].Sub(time.Now())
-		if sub <= 0 {
-			// If cookie is expired -> Issue new one
-			issueCookie(response, request)
-		} else {
-			// Proxy the request
-			url, _ := url.Parse(proxiedService)
-			proxy := httputil.NewSingleHostReverseProxy(url)
-			proxy.ServeHTTP(response, request)
+		if _, ok := cookies[cookie.Value]; ok { // Check if session cookie exists in registry
+			sub := cookies[cookie.Value].Sub(time.Now())
+			if sub <= 0 {
+				// If cookie is expired -> Issue new one
+				redirectMyPolicy(response, request)
+			} else {
+				// Proxy the request
+				url, _ := url.Parse(proxiedService)
+				proxy := httputil.NewSingleHostReverseProxy(url)
+				proxy.ServeHTTP(response, request)
+			}
+		} else { // If not, issue new session cookie
+			redirectMyPolicy(response, request)
 		}
 	}
 }
@@ -89,6 +100,9 @@ func myPolicyHandler(response http.ResponseWriter, request *http.Request) {
 		http.Redirect(response, request, "/", http.StatusFound)
 	} else {
 		// Whoop! This is the lucky way! Let's start with the cookie.
+		delete(cookies, cookie.Value)
+		//fmt.Printf("Dropped cookie:%s\n", cookie.Value) keeping for debug output
+		response, _ = issueCookieToResponse(response)
 		http.Redirect(response, request, requests[cookie.Value], http.StatusFound)
 	}
 }
